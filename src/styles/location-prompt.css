@@ -1,0 +1,16 @@
+.confirm-map-wrap::before {
+  content: "ফোন হাতে নিয়ে কয়েক সেকেন্ড স্থির হয়ে দাঁড়ান";
+  position: absolute;
+  z-index: 501;
+  top: 10px;
+  right: 10px;
+  left: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 3px 12px #15332625;
+  color: #263a30;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}

@@ -41,6 +41,11 @@ export function MapPage({ user, onLogout }) {
   const [liveTracking, setLiveTracking] = useState(false);
   const watchId = useRef(null);
   const lastLivePosition = useRef(null);
+  const confirmationOpen = useRef(false);
+
+  useEffect(() => {
+    confirmationOpen.current = showConfirm;
+  }, [showConfirm]);
 
   useEffect(() => () => {
     if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
@@ -73,7 +78,10 @@ export function MapPage({ user, onLogout }) {
         setPosition({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy, heading: coords.heading, speed: coords.speed, timestamp });
         setStatus("ready");
         setFollowRequest((value) => value + 1);
-        if (markAfterFinding) setShowConfirm(true);
+        if (markAfterFinding) {
+          confirmationOpen.current = true;
+          setShowConfirm(true);
+        }
       },
       locationError,
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
@@ -105,7 +113,7 @@ export function MapPage({ user, onLogout }) {
           reading.longitude = previous.longitude + (reading.longitude - previous.longitude) * smoothing;
         }
         lastLivePosition.current = reading;
-        setPosition(reading);
+        if (!confirmationOpen.current) setPosition(reading);
         setStatus("tracking");
       },
       (error) => {
@@ -129,8 +137,8 @@ export function MapPage({ user, onLogout }) {
     <header className="app-header"><Brand compact /><div className="office-chip"><span>আপনার ডাকঘর</span><strong>{user.postOffice} · {user.postcode}</strong></div><button className="logout-button" onClick={onLogout} aria-label="প্রস্থান করুন"><LogOut size={18} /><span>প্রস্থান করুন</span></button></header>
     <main className="map-layout minimal-map-layout">
       <section className="map-stage">
-        <MapContainer center={DHAKA} zoom={15} className="field-map" zoomControl={false}>
-          <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <MapContainer center={DHAKA} zoom={15} maxZoom={21} className="field-map" zoomControl={false}>
+          <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={19} maxZoom={21} />
           <LiveMapController position={position} followRequest={followRequest} liveTracking={liveTracking} />
           {position && <Circle center={[position.latitude, position.longitude]} radius={Math.max(position.accuracy, 5)} pathOptions={{ color: "#1479e8", weight: 1, fillColor: "#4c9df2", fillOpacity: 0.14 }} />}
           {position && <Marker position={[position.latitude, position.longitude]} icon={userIcon}><Popup>আপনার বর্তমান অবস্থান</Popup></Marker>}
