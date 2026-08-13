@@ -9,7 +9,7 @@ const DHAKA = [23.7104, 90.4074];
 const markerIcon = L.divIcon({ className: "delivery-marker", html: '<span><svg viewBox="0 0 24 24"><path d="M12 21s7-5.1 7-12a7 7 0 1 0-14 0c0 6.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg></span>', iconSize: [38, 44], iconAnchor: [19, 42] });
 const userIcon = L.divIcon({ className: "user-marker", html: "<span><i></i></span>", iconSize: [36, 36], iconAnchor: [18, 18] });
 
-function LiveMapController({ position, followRequest }) {
+function LiveMapController({ position, followRequest, liveTracking }) {
   const map = useMap();
   const hasCentered = useRef(false);
 
@@ -19,10 +19,10 @@ function LiveMapController({ position, followRequest }) {
     if (!hasCentered.current) {
       map.flyTo(location, 18, { duration: 0.8 });
       hasCentered.current = true;
-    } else {
-      map.panTo(location, { animate: true, duration: 0.45 });
+    } else if (liveTracking && map.getCenter().distanceTo(location) > 25) {
+      map.panTo(location, { animate: true, duration: 0.8, easeLinearity: 0.2, noMoveStart: true });
     }
-  }, [map, position]);
+  }, [liveTracking, map, position]);
 
   useEffect(() => {
     if (position && followRequest > 0) map.flyTo([position.latitude, position.longitude], Math.max(map.getZoom(), 18), { duration: 0.6 });
@@ -40,6 +40,7 @@ export function MapPage({ user, onLogout }) {
   const [followRequest, setFollowRequest] = useState(0);
   const [liveTracking, setLiveTracking] = useState(false);
   const watchId = useRef(null);
+  const lastLivePosition = useRef(null);
 
   useEffect(() => () => {
     if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
@@ -93,9 +94,19 @@ export function MapPage({ user, onLogout }) {
     setLiveTracking(true);
     watchId.current = navigator.geolocation.watchPosition(
       ({ coords, timestamp }) => {
-        setPosition({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy, heading: coords.heading, speed: coords.speed, timestamp });
+        const reading = { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy, heading: coords.heading, speed: coords.speed, timestamp };
+        const previous = lastLivePosition.current;
+        if (previous) {
+          const movement = L.latLng(previous.latitude, previous.longitude).distanceTo([reading.latitude, reading.longitude]);
+          const accuracyImproved = reading.accuracy < previous.accuracy * 0.8;
+          if (movement < 3 && !accuracyImproved) return;
+          const smoothing = movement > 30 ? 1 : 0.35;
+          reading.latitude = previous.latitude + (reading.latitude - previous.latitude) * smoothing;
+          reading.longitude = previous.longitude + (reading.longitude - previous.longitude) * smoothing;
+        }
+        lastLivePosition.current = reading;
+        setPosition(reading);
         setStatus("tracking");
-        setFollowRequest((value) => value + 1);
       },
       (error) => {
         watchId.current = null;
@@ -120,7 +131,7 @@ export function MapPage({ user, onLogout }) {
       <section className="map-stage">
         <MapContainer center={DHAKA} zoom={15} className="field-map" zoomControl={false}>
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <LiveMapController position={position} followRequest={followRequest} />
+          <LiveMapController position={position} followRequest={followRequest} liveTracking={liveTracking} />
           {position && <Circle center={[position.latitude, position.longitude]} radius={Math.max(position.accuracy, 5)} pathOptions={{ color: "#1479e8", weight: 1, fillColor: "#4c9df2", fillOpacity: 0.14 }} />}
           {position && <Marker position={[position.latitude, position.longitude]} icon={userIcon}><Popup>আপনার বর্তমান অবস্থান</Popup></Marker>}
           {points.map((point) => <Marker key={point.id} position={[point.latitude, point.longitude]} icon={markerIcon}><Popup><strong>ডেলিভারি ঠিকানা</strong><br />চিহ্নিত: {new Date(point.capturedAt).toLocaleString("bn-BD")}</Popup></Marker>)}
