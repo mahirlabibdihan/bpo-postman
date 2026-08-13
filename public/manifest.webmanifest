@@ -1,0 +1,29 @@
+{
+  "id": "/bpo-postman/",
+  "name": "বাংলাদেশ ডাক বিভাগ — ডাকপিয়ন",
+  "short_name": "ডাকপিয়ন",
+  "description": "ডেলিভারি ঠিকানা চিহ্নিতকরণ অ্যাপ",
+  "lang": "bn",
+  "dir": "ltr",
+  "start_url": "/bpo-postman/",
+  "scope": "/bpo-postman/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f7f5",
+  "theme_color": "#087a4b",
+  "categories": ["government", "navigation", "productivity"],
+  "icons": [
+    {
+      "src": "icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/app-icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
