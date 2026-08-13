@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { Check, LocateFixed, LogOut, MapPin, RefreshCw, X } from "lucide-react";
+import { Check, LocateFixed, LogOut, MapPin, Navigation, RefreshCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import { Brand } from "../components/Brand.jsx";
@@ -38,13 +38,34 @@ export function MapPage({ user, onLogout }) {
   const [notice, setNotice] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [followRequest, setFollowRequest] = useState(0);
-  function locate(markAfterFinding = false) {
+  const [liveTracking, setLiveTracking] = useState(false);
+  const watchId = useRef(null);
+
+  useEffect(() => () => {
+    if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
+  }, []);
+
+  function locationError(error) {
+    setStatus("error");
+    setNotice(error.code === error.PERMISSION_DENIED ? "ব্রাউজারে অবস্থানের অনুমতি বন্ধ আছে। সাইট সেটিংস থেকে Location অনুমতি চালু করুন।" : "বর্তমান অবস্থান পাওয়া যায়নি। খোলা জায়গায় গিয়ে আবার চেষ্টা করুন।");
+  }
+
+  function canUseLocation() {
     if (!window.isSecureContext) {
       setStatus("error");
       setNotice("নিরাপত্তার কারণে এই HTTP সংযোগে GPS চালু করা যাচ্ছে না। HTTPS ঠিকানা দিয়ে অ্যাপটি খুলুন।");
-      return;
+      return false;
     }
-    if (!navigator.geolocation) { setNotice("এই যন্ত্রে অবস্থান শনাক্ত করার সুবিধা নেই।"); return; }
+    if (!navigator.geolocation) {
+      setStatus("error");
+      setNotice("এই যন্ত্রে অবস্থান শনাক্ত করার সুবিধা নেই।");
+      return false;
+    }
+    return true;
+  }
+
+  function locate(markAfterFinding = false) {
+    if (!canUseLocation()) return;
     setStatus("locating"); setNotice("");
     navigator.geolocation.getCurrentPosition(
       ({ coords, timestamp }) => {
@@ -53,9 +74,33 @@ export function MapPage({ user, onLogout }) {
         setFollowRequest((value) => value + 1);
         if (markAfterFinding) setShowConfirm(true);
       },
+      locationError,
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
+    );
+  }
+
+  function toggleLiveTracking() {
+    if (liveTracking) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+      setLiveTracking(false);
+      setStatus("ready");
+      return;
+    }
+    if (!canUseLocation()) return;
+    setStatus("locating");
+    setNotice("");
+    setLiveTracking(true);
+    watchId.current = navigator.geolocation.watchPosition(
+      ({ coords, timestamp }) => {
+        setPosition({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy, heading: coords.heading, speed: coords.speed, timestamp });
+        setStatus("tracking");
+        setFollowRequest((value) => value + 1);
+      },
       (error) => {
-        setStatus("error");
-        setNotice(error.code === error.PERMISSION_DENIED ? "ব্রাউজারে অবস্থানের অনুমতি বন্ধ আছে। সাইট সেটিংস থেকে Location অনুমতি চালু করুন।" : "বর্তমান অবস্থান পাওয়া যায়নি। খোলা জায়গায় গিয়ে আবার চেষ্টা করুন।");
+        watchId.current = null;
+        setLiveTracking(false);
+        locationError(error);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
     );
@@ -81,6 +126,7 @@ export function MapPage({ user, onLogout }) {
           {points.map((point) => <Marker key={point.id} position={[point.latitude, point.longitude]} icon={markerIcon}><Popup><strong>ডেলিভারি ঠিকানা</strong><br />চিহ্নিত: {new Date(point.capturedAt).toLocaleString("bn-BD")}</Popup></Marker>)}
         </MapContainer>
         <button className="follow-location minimal-follow-location" aria-label="আমার বর্তমান অবস্থানে যান" onClick={() => locate(false)} disabled={status === "locating"}>{status === "locating" ? <RefreshCw className="spin" size={22} /> : <LocateFixed size={23} />}</button>
+        <button type="button" className={`live-tracking-circle ${liveTracking ? "active" : ""}`} onClick={toggleLiveTracking} aria-label={liveTracking ? "সরাসরি অবস্থান অনুসরণ বন্ধ করুন" : "সরাসরি অবস্থান অনুসরণ চালু করুন"} aria-pressed={liveTracking}><Navigation size={19} /><span /></button>
         {notice && <div className={`toast ${status === "error" ? "toast-error" : ""}`}>{status === "saved" ? <Check size={19} /> : <MapPin size={19} />}<span>{notice}</span><button onClick={() => setNotice("")}><X size={17} /></button></div>}
         <div className="minimal-action-bar"><button className="primary-action mark-current-button" onClick={() => locate(true)} disabled={status === "locating" || status === "saving"}>{status === "locating" ? <RefreshCw className="spin" size={21} /> : <MapPin size={21} />}{status === "locating" ? "বর্তমান অবস্থান খোঁজা হচ্ছে…" : "বর্তমান ঠিকানা চিহ্নিত করুন"}</button></div>
       </section>
