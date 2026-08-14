@@ -10,6 +10,12 @@ const COVERAGE_HULL_EXPANSION = 1.55;
 const markerIcon = L.divIcon({ className: "delivery-marker", html: '<span><svg viewBox="0 0 24 24"><path d="M12 21s7-5.1 7-12a7 7 0 1 0-14 0c0 6.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg></span>', iconSize: [38, 44], iconAnchor: [19, 42] });
 const userIcon = L.divIcon({ className: "user-marker", html: "<span><i></i></span>", iconSize: [36, 36], iconAnchor: [18, 18] });
 
+function RemoveLeafletAttribution() {
+  const map = useMap();
+  useEffect(() => { map.attributionControl.setPrefix(false); }, [map]);
+  return null;
+}
+
 function createCoverageHull(points) {
   const uniquePoints = [...new Map(points.map(({ latitude, longitude }) => [
     `${latitude}:${longitude}`,
@@ -87,7 +93,10 @@ export function MapPage({ user, onLogout }) {
   const watchId = useRef(null);
   const lastLivePosition = useRef(null);
   const confirmationOpen = useRef(false);
+  const initialLocationRequested = useRef(false);
   const coverageHull = useMemo(() => createCoverageHull(points), [points]);
+  const locateOnEntry = useRef(null);
+  locateOnEntry.current = locate;
 
   useEffect(() => {
     confirmationOpen.current = showConfirm;
@@ -95,6 +104,12 @@ export function MapPage({ user, onLogout }) {
 
   useEffect(() => () => {
     if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
+  }, []);
+
+  useEffect(() => {
+    if (initialLocationRequested.current) return;
+    initialLocationRequested.current = true;
+    locateOnEntry.current?.(false);
   }, []);
 
   function locationError(error) {
@@ -184,12 +199,13 @@ export function MapPage({ user, onLogout }) {
     <main className="map-layout minimal-map-layout">
       <section className="map-stage">
         <MapContainer center={DHAKA} zoom={15} maxZoom={21} className="field-map" zoomControl={false}>
+          <RemoveLeafletAttribution />
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={19} maxZoom={21} />
           <InitialPointsController points={points} />
           <LiveMapController position={position} followRequest={followRequest} liveTracking={liveTracking} />
           {coverageHull.length >= 3 && <Polygon positions={coverageHull} interactive={false} pathOptions={{ color: "#087a4b", weight: 3, opacity: 0.9, fillColor: "#21a16d", fillOpacity: 0.12, lineJoin: "round" }} />}
           {position && <Circle center={[position.latitude, position.longitude]} radius={Math.max(position.accuracy, 5)} pathOptions={{ color: "#1479e8", weight: 1, fillColor: "#4c9df2", fillOpacity: 0.14 }} />}
-          {position && <Marker position={[position.latitude, position.longitude]} icon={userIcon}><Popup>আপনার বর্তমান অবস্থান</Popup></Marker>}
+          {position && <Marker position={[position.latitude, position.longitude]} icon={userIcon} zIndexOffset={1000}><Popup>আপনার বর্তমান অবস্থান</Popup></Marker>}
           {points.map((point) => <Marker key={point.id} position={[point.latitude, point.longitude]} icon={markerIcon}><Popup><strong>ডেলিভারি ঠিকানা</strong><br />চিহ্নিত: {new Date(point.capturedAt).toLocaleString("bn-BD")}</Popup></Marker>)}
         </MapContainer>
         <button className="follow-location minimal-follow-location" aria-label="আমার বর্তমান অবস্থানে যান" onClick={() => locate(false)} disabled={status === "locating"}>{status === "locating" ? <RefreshCw className="spin" size={22} /> : <LocateFixed size={23} />}</button>
@@ -198,6 +214,6 @@ export function MapPage({ user, onLogout }) {
         <div className="minimal-action-bar"><button className="primary-action mark-current-button" onClick={() => locate(true)} disabled={status === "locating" || status === "saving"}>{status === "locating" ? <RefreshCw className="spin" size={21} /> : <MapPin size={21} />}{status === "locating" ? "বর্তমান অবস্থান খোঁজা হচ্ছে…" : "বর্তমান ঠিকানা চিহ্নিত করুন"}</button></div>
       </section>
     </main>
-    {showConfirm && <div className="modal-backdrop" onMouseDown={() => setShowConfirm(false)}><div className="confirm-modal" onMouseDown={(e) => e.stopPropagation()}><button className="modal-close" aria-label="বন্ধ করুন" onClick={() => setShowConfirm(false)}><X size={20} /></button><span className="confirm-pin"><MapPin size={28} /></span><h2>এই ডেলিভারি ঠিকানা চিহ্নিত করবেন?</h2><p>মানচিত্রে দেখানো জায়গাটি <strong>{user.postOffice} ({user.postcode})</strong>-এর অধীনে যোগ হবে।</p><div className="confirm-map-wrap"><MapContainer key={`${position.latitude}-${position.longitude}`} center={[position.latitude, position.longitude]} zoom={19} className="confirm-map" zoomControl={false} dragging={false} scrollWheelZoom={false} doubleClickZoom={false} touchZoom={false} keyboard={false} attributionControl={false}><TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />{points.map((point) => <Marker key={`confirm-${point.id}`} position={[point.latitude, point.longitude]} icon={markerIcon} />)}<Circle center={[position.latitude, position.longitude]} radius={Math.max(position.accuracy, 5)} pathOptions={{ color: "#1479e8", weight: 1, fillColor: "#4c9df2", fillOpacity: 0.14 }} /><Marker position={[position.latitude, position.longitude]} icon={userIcon} /></MapContainer><span className={`map-accuracy-note ${position.accuracy <= 50 ? "good" : "warning"}`}><strong>{position.accuracy <= 20 ? "অবস্থানটি নির্ভুল" : position.accuracy <= 50 ? "অবস্থানটি মোটামুটি নির্ভুল" : "অবস্থানটি কম নির্ভুল"}</strong><small><b>{Math.round(position.accuracy).toLocaleString("bn-BD")} মিটার</b> পর্যন্ত ভুল হতে পারে</small></span></div><button className="confirm-button" onClick={confirmPoint} disabled={status === "saving"}>{status === "saving" ? "সংরক্ষণ হচ্ছে…" : "হ্যাঁ, ঠিকানাটি চিহ্নিত করুন"}</button><button className="cancel-button" onClick={() => setShowConfirm(false)}>বাতিল করুন</button></div></div>}
+    {showConfirm && <div className="modal-backdrop" onMouseDown={() => setShowConfirm(false)}><div className="confirm-modal" onMouseDown={(e) => e.stopPropagation()}><button className="modal-close" aria-label="বন্ধ করুন" onClick={() => setShowConfirm(false)}><X size={20} /></button><span className="confirm-pin"><MapPin size={28} /></span><h2>এই ডেলিভারি ঠিকানা চিহ্নিত করবেন?</h2><p>মানচিত্রে দেখানো জায়গাটি <strong>{user.postOffice} ({user.postcode})</strong>-এর অধীনে যোগ হবে।</p><div className="confirm-map-wrap"><MapContainer key={`${position.latitude}-${position.longitude}`} center={[position.latitude, position.longitude]} zoom={19} className="confirm-map" zoomControl={false} dragging={false} scrollWheelZoom={false} doubleClickZoom={false} touchZoom={false} keyboard={false} attributionControl={false}><TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />{points.map((point) => <Marker key={`confirm-${point.id}`} position={[point.latitude, point.longitude]} icon={markerIcon} />)}<Circle center={[position.latitude, position.longitude]} radius={Math.max(position.accuracy, 5)} pathOptions={{ color: "#1479e8", weight: 1, fillColor: "#4c9df2", fillOpacity: 0.14 }} /><Marker position={[position.latitude, position.longitude]} icon={userIcon} zIndexOffset={1000} /></MapContainer><span className={`map-accuracy-note ${position.accuracy <= 50 ? "good" : "warning"}`}><strong>{position.accuracy <= 20 ? "অবস্থানটি নির্ভুল" : position.accuracy <= 50 ? "অবস্থানটি মোটামুটি নির্ভুল" : "অবস্থানটি কম নির্ভুল"}</strong><small><b>{Math.round(position.accuracy).toLocaleString("bn-BD")} মিটার</b> পর্যন্ত ভুল হতে পারে</small></span></div><button className="confirm-button" onClick={confirmPoint} disabled={status === "saving"}>{status === "saving" ? "সংরক্ষণ হচ্ছে…" : "হ্যাঁ, ঠিকানাটি চিহ্নিত করুন"}</button><button className="cancel-button" onClick={() => setShowConfirm(false)}>বাতিল করুন</button></div></div>}
   </div>;
 }
