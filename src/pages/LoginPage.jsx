@@ -2,6 +2,11 @@ import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import { useState } from "react";
 import { Brand } from "../components/Brand.jsx";
 
+const DEMO_ACCOUNTS = {
+  "PM-1215": { password: "1215", name: "মো. রফিকুল ইসলাম", postOffice: "তেজগাঁও টিএসও", postcode: "১২১৫" },
+  "PM-1000": { password: "1000", name: "মো. আব্দুল করিম", postOffice: "ঢাকা জিপিও", postcode: "১০০০" },
+};
+
 export function LoginPage({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ employeeId: "", password: "" });
@@ -9,8 +14,14 @@ export function LoginPage({ onLogin }) {
 
   function submit(event) {
     event.preventDefault();
-    if (!form.employeeId.trim() || !form.password) { setError("আপনার কর্মী আইডি ও পাসওয়ার্ড লিখুন।"); return; }
-    onLogin({ name: "আব্দুল করিম", employeeId: form.employeeId.trim(), postOffice: "ঢাকা জিপিও", postcode: "১০০০" });
+    const employeeId = form.employeeId.trim().toUpperCase();
+    const account = DEMO_ACCOUNTS[employeeId];
+    if (!account || account.password !== form.password) {
+      setError("কর্মী আইডি অথবা পাসওয়ার্ড সঠিক নয়।");
+      return;
+    }
+    setError("");
+    onLogin({ ...account, employeeId });
   }
 
   return <main className="login-page">
@@ -26,7 +37,7 @@ export function LoginPage({ onLogin }) {
         <div className="login-heading"><span className="login-icon"><LockKeyhole size={24} /></span><h2>স্বাগতম</h2><p>আপনার এলাকার ঠিকানা চিহ্নিত করতে প্রবেশ করুন।</p></div>
         <label>কর্মী আইডি<div className="field"><UserRound size={19} /><input autoFocus value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} placeholder="যেমন: PM-1042" autoComplete="username" /></div></label>
         <label>পাসওয়ার্ড<div className="field"><LockKeyhole size={19} /><input type={showPassword ? "text" : "password"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="আপনার পাসওয়ার্ড লিখুন" autoComplete="current-password" /><button type="button" className="eye-button" aria-label="পাসওয়ার্ড দেখুন বা লুকান" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button></div></label>
-        {error && <p className="form-error">{error}</p>}
+        {error && <p className="form-error" role="alert">{error}</p>}
         <button className="sign-in-button" type="submit">প্রবেশ করুন <span>→</span></button>
         <p className="support-copy">প্রবেশ করতে সমস্যা হচ্ছে?<br /><a href="mailto:support@bdpost.gov.bd">আপনার তত্ত্বাবধায়কের সঙ্গে যোগাযোগ করুন</a></p>
       </form>

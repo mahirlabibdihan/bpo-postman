@@ -1,13 +1,45 @@
 import L from "leaflet";
 import { Check, LocateFixed, LogOut, MapPin, Navigation, RefreshCw, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Circle, MapContainer, Marker, Polygon, Popup, TileLayer, useMap } from "react-leaflet";
 import { Brand } from "../components/Brand.jsx";
 import { getSavedPoints, saveDeliveryPoint } from "../api/deliveries.js";
 
 const DHAKA = [23.7104, 90.4074];
+const COVERAGE_HULL_EXPANSION = 1.55;
 const markerIcon = L.divIcon({ className: "delivery-marker", html: '<span><svg viewBox="0 0 24 24"><path d="M12 21s7-5.1 7-12a7 7 0 1 0-14 0c0 6.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg></span>', iconSize: [38, 44], iconAnchor: [19, 42] });
 const userIcon = L.divIcon({ className: "user-marker", html: "<span><i></i></span>", iconSize: [36, 36], iconAnchor: [18, 18] });
+
+function createCoverageHull(points) {
+  const uniquePoints = [...new Map(points.map(({ latitude, longitude }) => [
+    `${latitude}:${longitude}`,
+    { x: longitude, y: latitude },
+  ])).values()].sort((a, b) => a.x - b.x || a.y - b.y);
+
+  if (uniquePoints.length < 3) return [];
+
+  const cross = (origin, a, b) =>
+    (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+  const buildHalf = (orderedPoints) => {
+    const half = [];
+    orderedPoints.forEach((point) => {
+      while (half.length >= 2 && cross(half.at(-2), half.at(-1), point) <= 0) half.pop();
+      half.push(point);
+    });
+    return half;
+  };
+
+  const lower = buildHalf(uniquePoints);
+  const upper = buildHalf([...uniquePoints].reverse());
+  const hull = [...lower.slice(0, -1), ...upper.slice(0, -1)];
+  if (hull.length < 3) return [];
+
+  const center = hull.reduce((total, point) => ({ x: total.x + point.x / hull.length, y: total.y + point.y / hull.length }), { x: 0, y: 0 });
+  return hull.map(({ x, y }) => [
+    center.y + (y - center.y) * COVERAGE_HULL_EXPANSION,
+    center.x + (x - center.x) * COVERAGE_HULL_EXPANSION,
+  ]);
+}
 
 function LiveMapController({ position, followRequest, liveTracking }) {
   const map = useMap();
@@ -31,8 +63,21 @@ function LiveMapController({ position, followRequest, liveTracking }) {
   return null;
 }
 
+function InitialPointsController({ points }) {
+  const map = useMap();
+  const hasFitted = useRef(false);
+
+  useEffect(() => {
+    if (hasFitted.current || points.length === 0) return;
+    map.fitBounds(points.map((point) => [point.latitude, point.longitude]), { padding: [45, 45], maxZoom: 18 });
+    hasFitted.current = true;
+  }, [map, points]);
+
+  return null;
+}
+
 export function MapPage({ user, onLogout }) {
-  const [points, setPoints] = useState(getSavedPoints);
+  const [points, setPoints] = useState(() => getSavedPoints().filter((point) => point.postcode === user.postcode));
   const [position, setPosition] = useState(null);
   const [status, setStatus] = useState("idle");
   const [notice, setNotice] = useState("");
@@ -42,6 +87,7 @@ export function MapPage({ user, onLogout }) {
   const watchId = useRef(null);
   const lastLivePosition = useRef(null);
   const confirmationOpen = useRef(false);
+  const coverageHull = useMemo(() => createCoverageHull(points), [points]);
 
   useEffect(() => {
     confirmationOpen.current = showConfirm;
@@ -139,7 +185,9 @@ export function MapPage({ user, onLogout }) {
       <section className="map-stage">
         <MapContainer center={DHAKA} zoom={15} maxZoom={21} className="field-map" zoomControl={false}>
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={19} maxZoom={21} />
+          <InitialPointsController points={points} />
           <LiveMapController position={position} followRequest={followRequest} liveTracking={liveTracking} />
+          {coverageHull.length >= 3 && <Polygon positions={coverageHull} interactive={false} pathOptions={{ color: "#087a4b", weight: 3, opacity: 0.9, fillColor: "#21a16d", fillOpacity: 0.12, lineJoin: "round" }} />}
           {position && <Circle center={[position.latitude, position.longitude]} radius={Math.max(position.accuracy, 5)} pathOptions={{ color: "#1479e8", weight: 1, fillColor: "#4c9df2", fillOpacity: 0.14 }} />}
           {position && <Marker position={[position.latitude, position.longitude]} icon={userIcon}><Popup>আপনার বর্তমান অবস্থান</Popup></Marker>}
           {points.map((point) => <Marker key={point.id} position={[point.latitude, point.longitude]} icon={markerIcon}><Popup><strong>ডেলিভারি ঠিকানা</strong><br />চিহ্নিত: {new Date(point.capturedAt).toLocaleString("bn-BD")}</Popup></Marker>)}

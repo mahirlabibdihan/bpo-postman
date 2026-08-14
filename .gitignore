@@ -4,5 +4,6 @@ dist/
 .env.*
 *.local
 *.log
+credentials.txt
 .DS_Store
-
+todo
