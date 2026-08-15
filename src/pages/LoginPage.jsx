@@ -4,7 +4,7 @@ import { Brand } from "../components/Brand.jsx";
 
 const DEMO_ACCOUNTS = {
   "PM-1215": { password: "1215", name: "মো. রফিকুল ইসলাম", postOffice: "তেজগাঁও টিএসও", postcode: "১২১৫" },
-  "PM-1000": { password: "1000", name: "মো. আব্দুল করিম", postOffice: "ঢাকা জিপিও", postcode: "১০০০" },
+  "PM-1205": { password: "1205", name: "মো. আব্দুল করিম", postOffice: "নিউ মার্কেট টিএসও", postcode: "১২০৫" },
 };
 
 export function LoginPage({ onLogin }) {
@@ -15,6 +15,12 @@ export function LoginPage({ onLogin }) {
   function submit(event) {
     event.preventDefault();
     const employeeId = form.employeeId.trim().toUpperCase();
+    const isEmptyDemoLogin = !employeeId && !form.password.trim();
+    if (isEmptyDemoLogin) {
+      onLogin({ ...DEMO_ACCOUNTS["PM-1205"], employeeId: "PM-1205" });
+      return;
+    }
+
     const account = DEMO_ACCOUNTS[employeeId];
     if (!account || account.password !== form.password) {
       setError("কর্মী আইডি অথবা পাসওয়ার্ড সঠিক নয়।");
