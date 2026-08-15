@@ -57,19 +57,23 @@ button { cursor:pointer; }
 @media(max-width:460px){.login-heading h2{font-size:29px}.mobile-brand{margin-bottom:38px}.login-panel{justify-content:flex-start;padding-top:35px}.office-chip strong{font-size:11px}.office-chip span{font-size:8px}.accuracy-card{top:58px}.accuracy-card span{display:none}.map-action-card strong{font-size:12px}}
 
 /* Keep Bengali interface text comfortably readable across desktop and mobile. */
-.brand small { font-size: 12px; }
-.eyebrow, .intro-footer { font-size: 13px; }
-.login-heading p { font-size: 16px; line-height: 1.55; }
-.login-card label { font-size: 15px; }
-.field input, .sign-in-button, .confirm-button { font-size: 16px; }
-.form-error, .support-copy, .logout-button, .toast, .cancel-button { font-size: 14px; }
-.secure-note, .office-chip span { font-size: 12px; }
-.office-chip strong { font-size: 15px; }
-.confirm-modal h2 { font-size: 24px; }
-.confirm-modal > p { max-width: 330px; font-size: 15px; }
+.brand strong { font-size: 20px; }
+.brand small { font-size: 14px; }
+.eyebrow, .intro-footer { font-size: 15px; }
+.login-heading h2 { font-size: 38px; }
+.login-heading p { font-size: 18px; line-height: 1.55; }
+.login-card label { font-size: 17px; }
+.field input, .sign-in-button, .confirm-button { font-size: 18px; }
+.form-error, .support-copy, .logout-button, .toast, .cancel-button { font-size: 16px; }
+.secure-note, .office-chip span { font-size: 14px; }
+.office-chip strong { font-size: 18px; }
+.mark-current-button { font-size: 17px; }
+.confirm-modal h2 { font-size: 27px; }
+.confirm-modal > p { max-width: 350px; font-size: 17px; }
+.map-accuracy-note, .map-accuracy-note small, .confirm-map-wrap::before { font-size: 14px; }
 
 @media(max-width:460px) {
-  .login-heading h2 { font-size: 30px; }
-  .office-chip strong { font-size: 13px; }
-  .office-chip span { font-size: 10px; }
+  .login-heading h2 { font-size: 34px; }
+  .office-chip strong { font-size: 15px; }
+  .office-chip span { font-size: 12px; }
 }

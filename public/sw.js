@@ -1,4 +1,4 @@
-const APP_CACHE = "bpo-postman-app-v1";
+const APP_CACHE = "bpo-postman-app-v2";
 const MAP_CACHE = "bpo-postman-map-v1";
 const APP_ROOT = "/bpo-postman/";
 const APP_SHELL = [APP_ROOT, `${APP_ROOT}manifest.webmanifest`, `${APP_ROOT}icons/app-icon.svg`, `${APP_ROOT}icons/app-icon-maskable.svg`];
