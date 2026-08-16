@@ -89,14 +89,14 @@ export function MapPage({ user, onLogout }) {
   const [notice, setNotice] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [followRequest, setFollowRequest] = useState(0);
-  const [liveTracking, setLiveTracking] = useState(false);
+  const [liveTracking, setLiveTracking] = useState(true);
   const watchId = useRef(null);
   const lastLivePosition = useRef(null);
   const confirmationOpen = useRef(false);
-  const initialLocationRequested = useRef(false);
+  const initialTrackingRequested = useRef(false);
   const coverageHull = useMemo(() => createCoverageHull(points), [points]);
-  const locateOnEntry = useRef(null);
-  locateOnEntry.current = locate;
+  const startTrackingOnEntry = useRef(null);
+  startTrackingOnEntry.current = startLiveTracking;
 
   useEffect(() => {
     confirmationOpen.current = showConfirm;
@@ -107,9 +107,9 @@ export function MapPage({ user, onLogout }) {
   }, []);
 
   useEffect(() => {
-    if (initialLocationRequested.current) return;
-    initialLocationRequested.current = true;
-    locateOnEntry.current?.(false);
+    if (initialTrackingRequested.current) return;
+    initialTrackingRequested.current = true;
+    startTrackingOnEntry.current?.();
   }, []);
 
   function locationError(error) {
@@ -149,15 +149,11 @@ export function MapPage({ user, onLogout }) {
     );
   }
 
-  function toggleLiveTracking() {
-    if (liveTracking) {
-      navigator.geolocation.clearWatch(watchId.current);
-      watchId.current = null;
+  function startLiveTracking() {
+    if (!canUseLocation()) {
       setLiveTracking(false);
-      setStatus("ready");
       return;
     }
-    if (!canUseLocation()) return;
     setStatus("locating");
     setNotice("");
     setLiveTracking(true);
@@ -184,6 +180,17 @@ export function MapPage({ user, onLogout }) {
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
     );
+  }
+
+  function toggleLiveTracking() {
+    if (watchId.current != null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+      setLiveTracking(false);
+      setStatus("ready");
+      return;
+    }
+    startLiveTracking();
   }
 
   async function confirmPoint() {
